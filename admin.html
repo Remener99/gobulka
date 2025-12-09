@@ -1008,12 +1008,22 @@ function loadOrdersFromGAS() {
         }
 
         function updateAllSections() {
-            renderFilteredOrders('pending-list', 'pending');
-            renderFilteredOrders('preparing-list', 'preparing');
-            renderFilteredOrders('ready-list', 'ready');
-            renderFilteredOrders('completed-list', 'completed');
-            renderOrdersList('orders-list', AdminState.orders);
+            const pendingList = document.getElementById('pending-list');
+            if (pendingList) renderFilteredOrders('pending-list', 'pending');
+            
+            const preparingList = document.getElementById('preparing-list');
+            if (preparingList) renderFilteredOrders('preparing-list', 'preparing');
+            
+            const readyList = document.getElementById('ready-list');
+            if (readyList) renderFilteredOrders('ready-list', 'ready');
+            
+            const completedList = document.getElementById('completed-list');
+            if (completedList) renderFilteredOrders('completed-list', 'completed');
+            
+            const ordersList = document.getElementById('orders-list');
+            if (ordersList) renderOrdersList('orders-list', AdminState.orders);
         }
+
 
         function updateStatistics() {
             const statusStats = {
