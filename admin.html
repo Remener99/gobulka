@@ -728,10 +728,40 @@
             isLoading: false
         };
 
-        function initializeAdmin() {
-            console.log('Инициализация панели администратора...');
-            loadOrdersFromGoogleSheets();
-        }
+function initializeAdmin() {
+    loadOrdersFromGAS();
+    updateDashboard();
+    renderOrdersList('orders', AdminState.orders);
+    updateAllSections();
+    updateStatistics();
+    console.log('✅ Панель администратора инициализирована');
+}
+
+function loadOrdersFromGAS() {
+    const url = GOOGLE_APPS_SCRIPT_URL + '?action=getOrders';
+    
+    fetch(url)
+        .then(response => response.json())
+        .then(data => {
+            console.log('📦 Ответ от GAS:', data);
+            
+            if (data.success && data.orders) {
+                AdminState.orders = data.orders;
+                AdminState.filteredOrders = data.orders;
+                console.log('✅ Загружено заказов:', data.orders.length);
+                
+                updateDashboard();
+                renderOrdersList('orders', AdminState.orders);
+                updateAllSections();
+                updateStatistics();
+            } else {
+                console.log('❌ Ошибка:', data.message);
+            }
+        })
+        .catch(error => {
+            console.log('❌ Ошибка при загрузке:', error);
+        });
+}
 
         function loadOrdersFromGoogleSheets() {
             if (AdminState.isLoading) return;
