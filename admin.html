@@ -1078,7 +1078,33 @@ function loadOrdersFromGAS() {
             return labels[status] || status;
         }
 
-        document.addEventListener('DOMContentLoaded', initializeAdmin);
+        document.addEventListener('DOMContentLoaded', function() {
+    loadOrdersFromGAS();
+});
+
+function loadOrdersFromGAS() {
+    const url = GOOGLE_APPS_SCRIPT_URL + '?action=getOrders';
+    
+    fetch(url)
+        .then(response => response.json())
+        .then(data => {
+            console.log('✅ Заказы загружены:', data);
+            
+            if (data.success && data.orders && data.orders.length > 0) {
+                AdminState.orders = data.orders;
+                AdminState.filteredOrders = data.orders;
+                
+                updateDashboard();
+                renderOrdersList('orders-list', AdminState.orders);
+                updateAllSections();
+                updateStatistics();
+                
+                console.log('✅ Таблица отрисована с ' + data.orders.length + ' заказами');
+            }
+        })
+        .catch(error => console.log('❌ Ошибка загрузки:', error));
+}
+
 
         document.addEventListener('DOMContentLoaded', function() {
             const searchInput = document.getElementById('search-input');
