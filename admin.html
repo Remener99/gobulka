@@ -915,8 +915,8 @@ function loadOrdersFromGAS() {
                                     <td><span class="status-badge status-${order.status}">${getStatusLabel(order.status)}</span></td>
                                     <td>${order.createdAt}</td>
                                     <td>
-                                        <button class="action-btn" onclick="openOrderModal(${index})">Подробно</button>
-                                        <button class="action-btn danger" onclick="deleteOrder(${index})">Удалить</button>
+                                        <button class="action-btn" onclick="openOrderModal(${order.orderId})">Подробно</button>
+                                        <button class="action-btn danger" onclick="deleteOrder(${order.orderId})">Удалить</button>
                                     </td>
                                 </tr>
                             `).join('')}
@@ -940,9 +940,15 @@ function loadOrdersFromGAS() {
             renderOrdersList(containerId, filtered);
         }
 
-        function openOrderModal(orderIndex) {
-            const order = AdminState.orders[orderIndex];
-            AdminState.currentOrderModal = orderIndex;
+        function openOrderModal(orderId) {
+            const order = AdminState.orders.find(o => o.orderId == orderId);
+            
+            if (!order) {
+                alert('❌ Заказ не найден');
+                return;
+            }
+            
+            AdminState.currentOrderModal = order.orderId;
 
             const itemsHtml = order.items.map(item => 
                 '<li>' + item.name + ' × ' + item.quantity + ' = ' + (item.price * item.quantity) + ' ₽</li>'
@@ -978,55 +984,67 @@ function loadOrdersFromGAS() {
         }
 
         function updateOrderStatus() {
-            if (AdminState.currentOrderModal === null) return;
-
+            if (!AdminState.currentOrderModal) {
+                alert('❌ Ошибка: заказ не найден');
+                return;
+            }
+        
             const newStatus = document.getElementById('modal-status-select').value;
-            const order = AdminState.orders[AdminState.currentOrderModal];
-
-            const updateUrl = GOOGLE_APPS_SCRIPT_URL + '?action=updateStatus&orderId=' + order.orderId + '&status=' + newStatus;
-
-            fetch(updateUrl)
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        order.status = newStatus;
-                        console.log('✅ Статус заказа #' + order.orderId + ' изменен на: ' + newStatus);
-                        alert('✅ Статус заказа обновлен на: ' + getStatusLabel(newStatus));
-                        closeModal();
-                        updateAllSections();
-                        updateDashboard();
-                    } else {
-                        alert('❌ Ошибка: ' + data.error);
-                    }
-                })
-                .catch(error => {
-                    console.error('Ошибка:', error);
-                    alert('❌ Ошибка при обновлении статуса');
-                });
+            
+            const data = {
+                action: 'updateStatus',
+                orderId: AdminState.currentOrderModal,
+                status: newStatus
+            };
+            
+            fetch(GOOGLE_APPS_SCRIPT_URL, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            })
+            .then(r => r.json())
+            .then(result => {
+                if (result.success) {
+                    alert('✅ Статус заказа обновлен на: ' + getStatusLabel(newStatus));
+                    closeModal();
+                    location.reload();
+                } else {
+                    alert('❌ Ошибка: ' + result.message);
+                }
+            })
+            .catch(e => {
+                alert('❌ Ошибка обновления: ' + e.message);
+            });
         }
 
-        function deleteOrder(orderIndex) {
+        function deleteOrder(orderId) {
             if (confirm('⚠️ Вы уверены, что хотите удалить этот заказ?')) {
-                const order = AdminState.orders[orderIndex];
-                const deleteUrl = GOOGLE_APPS_SCRIPT_URL + '?action=deleteOrder&orderId=' + order.orderId;
-
-                fetch(deleteUrl)
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            AdminState.orders.splice(orderIndex, 1);
-                            console.log('✅ Заказ #' + order.orderId + ' удален');
-                            updateAllSections();
-                            updateDashboard();
-                            alert('✅ Заказ удален');
-                        } else {
-                            alert('❌ Ошибка: ' + data.error);
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Ошибка:', error);
-                        alert('❌ Ошибка при удалении заказа');
-                    });
+                const data = {
+                    action: 'deleteOrder',
+                    orderId: orderId
+                };
+                
+                fetch(GOOGLE_APPS_SCRIPT_URL, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                })
+                .then(r => r.json())
+                .then(result => {
+                    if (result.success) {
+                        alert('✅ Заказ удален');
+                        location.reload();
+                    } else {
+                        alert('❌ Ошибка: ' + result.message);
+                    }
+                })
+                .catch(e => {
+                    alert('❌ Ошибка удаления: ' + e.message);
+                });
             }
         }
 
