@@ -877,26 +877,56 @@ function loadOrdersFromGAS() {
             document.getElementById('recent-orders').innerHTML = recentOrdersHtml;
         }
 
-        function renderOrdersList(containerId, orders) {
-            const container = document.getElementById(containerId);
+            function renderOrdersList(containerId, orders) {
+                const container = document.getElementById(containerId);
+                
+                if (!container) {
+                    console.log('⚠️ Контейнер не найден:', containerId);
+                    return;
+                }
+                
+                if (!orders || orders.length === 0) {
+                    container.innerHTML = '<div class="empty-state"><div class="empty-icon">📭</div><div class="empty-text">Нет заказов</div></div>';
+                    return;
+                }
             
-            if (orders.length === 0) {
-                container.innerHTML = '<div class="empty-state"><div class="empty-icon">📭</div><div class="empty-text">Нет заказов</div></div>';
-                return;
+                const html = `
+                    <table class="orders-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Клиент</th>
+                                <th>Адрес</th>
+                                <th>Сумма</th>
+                                <th>Оплата</th>
+                                <th>Статус</th>
+                                <th>Время</th>
+                                <th>Действия</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${orders.map((order, index) => `
+                                <tr>
+                                    <td class="order-id">#${order.orderId}</td>
+                                    <td>${String(order.customerName)}</td>
+                                    <td>${String(order.deliveryAddress).substring(0, 25)}...</td>
+                                    <td><strong>${order.totalPrice} ₽</strong></td>
+                                    <td>${order.paymentMethod === 'qr' ? '📱 QR' : '💵 Наличные'}</td>
+                                    <td><span class="status-badge status-${order.status}">${getStatusLabel(order.status)}</span></td>
+                                    <td>${order.createdAt}</td>
+                                    <td>
+                                        <button class="action-btn" onclick="openOrderModal(${index})">Подробно</button>
+                                        <button class="action-btn danger" onclick="deleteOrder(${index})">Удалить</button>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+            
+                container.innerHTML = html;
             }
 
-            const html = '<table class="orders-table"><thead><tr><th>ID</th><th>Клиент</th><th>Адрес</th><th>Сумма</th><th>Оплата</th><th>Статус</th><th>Время</th><th>Действия</th></tr></thead><tbody>' +
-                orders.map((order, index) => '<tr><td class="order-id">#' + order.orderId + '</td><td>' + order.customerName + '</td><td>' + 
-                order.deliveryAddress.substring(0, 25) + '...</td><td><strong>' + order.totalPrice + ' ₽</strong></td><td>' + 
-                (order.paymentMethod === 'qr' ? '📱 QR' : '💵 Наличные') + '</td><td><span class="status-badge status-' + order.status + '">' + 
-                getStatusLabel(order.status) + '</span></td><td>' + order.createdAt + '</td><td>' +
-                '<button class="action-btn" onclick="openOrderModal(' + index + ')">Подробно</button>' +
-                '<button class="action-btn danger" onclick="deleteOrder(' + index + ')">Удалить</button>' +
-                '</td></tr>').join('') +
-                '</tbody></table>';
-
-            container.innerHTML = html;
-        }
 
         function renderFilteredOrders(containerId, status) {
             const filtered = AdminState.orders.filter(o => o.status === status);
