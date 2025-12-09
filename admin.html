@@ -929,6 +929,13 @@ function loadOrdersFromGAS() {
 
 
         function renderFilteredOrders(containerId, status) {
+            const container = document.getElementById(containerId);
+            
+            if (!container) {
+                console.log('⚠️ Контейнер не найден:', containerId);
+                return;
+            }
+            
             const filtered = AdminState.orders.filter(o => o.status === status);
             renderOrdersList(containerId, filtered);
         }
