@@ -1333,7 +1333,9 @@
                 // 7. Параметры: "Выполнять как: ваша учетная запись", "У кого есть доступ: Все"
                 // 8. Скопируйте URL и замените ниже
 
-                const GOOGLE_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyMS-TbDb3f567HP7RC_bYsOb_IwDI2ENhmtPPbGS0dJvsRI2eR72okqBqJk8RxGMPH/exec';
+                const SUPABASE_URL = 'https://YOUR_PROJECT_ID.supabase.co'; // Замените!
+                const SUPABASE_KEY = 'YOUR_ANON_KEY'; // Замените!
+                const SUPABASE_TABLE = 'orders';
 
                 // Показать индикатор загрузки
                 const submitBtn = document.getElementById('submit-order-btn');
@@ -1341,20 +1343,129 @@
                 submitBtn.textContent = '⏳ Отправляем...';
                 submitBtn.disabled = true;
 
-                // Отправка заказа на Google Apps Script
-                const response = await fetch(GOOGLE_APPS_SCRIPT_URL, {
-                    method: 'POST',
-                    body: JSON.stringify(orderData),
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    mode: 'no-cors' // Важно для Google Apps Script
-                });
+                async function createOrder(orderData) {
+                    try {
+                        const response = await fetch(
+                            `${SUPABASE_URL}/rest/v1/${SUPABASE_TABLE}`,
+                            {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'apikey': SUPABASE_KEY,
+                                    'Authorization': `Bearer ${SUPABASE_KEY}`
+                                },
+                                body: JSON.stringify({
+                                    id: Date.now(),
+                                    user_id: orderData.userId || 'unknown',
+                                    customer_name: String(orderData.customerName || ''),
+                                    delivery_address: String(orderData.deliveryAddress || ''),
+                                    phone: orderData.phone || '',
+                                    items: orderData.items || [],
+                                    total_price: orderData.totalPrice || 0,
+                                    payment_method: orderData.paymentMethod || 'cash',
+                                    comment: orderData.comment || '',
+                                    status: 'pending',
+                                    created_at_formatted: new Date().toLocaleString('ru-RU'),
+                                    telegram_id: orderData.telegramId || '',
+                                    user_name: orderData.userName || ''
+                                })
+                            }
+                        );
+                
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                
+                        const result = await response.json();
+                        console.log('✅ Заказ создан:', result);
+                        return { success: true, orderId: result[0]?.id };
+                    } catch (error) {
+                        console.error('❌ Ошибка создания заказа:', error);
+                        return { success: false, error: error.message };
+                    }
+                }
 
-                // Логирование результата
-                console.log('📋 Заказ отправлен:', orderData);
-                console.log('✅ Ответ сервера получен');
+                // ============ ПОЛУЧЕНИЕ ВСЕХ ЗАКАЗОВ ============
+                async function getOrders() {
+                    try {
+                        const response = await fetch(
+                            `${SUPABASE_URL}/rest/v1/${SUPABASE_TABLE}?order=created_at.desc`,
+                            {
+                                method: 'GET',
+                                headers: {
+                                    'apikey': SUPABASE_KEY,
+                                    'Authorization': `Bearer ${SUPABASE_KEY}`
+                                }
+                            }
+                        );
+                
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                
+                        const orders = await response.json();
+                        console.log('✅ Заказы загружены:', orders);
+                        return { success: true, orders: orders };
+                    } catch (error) {
+                        console.error('❌ Ошибка загрузки заказов:', error);
+                        return { success: false, orders: [] };
+                    }
+                }
+                // ============ ИЗМЕНЕНИЕ СТАТУСА ЗАКАЗА ============
+                async function updateOrderStatus(orderId, newStatus) {
+                    try {
+                        const response = await fetch(
+                            `${SUPABASE_URL}/rest/v1/${SUPABASE_TABLE}?id=eq.${orderId}`,
+                            {
+                                method: 'PATCH',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'apikey': SUPABASE_KEY,
+                                    'Authorization': `Bearer ${SUPABASE_KEY}`
+                                },
+                                body: JSON.stringify({
+                                    status: newStatus
+                                })
+                            }
+                        );
+                
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                
+                        console.log('✅ Статус обновлен');
+                        return { success: true };
+                    } catch (error) {
+                        console.error('❌ Ошибка обновления статуса:', error);
+                        return { success: false, error: error.message };
+                    }
+                }
 
+                                // ============ УДАЛЕНИЕ ЗАКАЗА ============
+                async function deleteOrder(orderId) {
+                    try {
+                        const response = await fetch(
+                            `${SUPABASE_URL}/rest/v1/${SUPABASE_TABLE}?id=eq.${orderId}`,
+                            {
+                                method: 'DELETE',
+                                headers: {
+                                    'apikey': SUPABASE_KEY,
+                                    'Authorization': `Bearer ${SUPABASE_KEY}`
+                                }
+                            }
+                        );
+                
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                
+                        console.log('✅ Заказ удален');
+                        return { success: true };
+                    } catch (error) {
+                        console.error('❌ Ошибка удаления заказа:', error);
+                        return { success: false, error: error.message };
+                    }
+                }
                 // Очистить корзину
                 AppState.cart = [];
                 saveCartToStorage();
@@ -1375,38 +1486,7 @@
                     submitBtn.disabled = false;
                 }, 2000);
 
-            } catch (error) {
-                console.error('❌ Ошибка при отправке заказа:', error);
-                
-                // Если это ошибка CORS (нормально для Google Apps Script)
-                if (error.name === 'TypeError' && error.message.includes('cors')) {
-                    console.log('✅ CORS ошибка - это нормально для Google Apps Script, заказ отправлен');
-                    
-                    // Очистить корзину
-                    AppState.cart = [];
-                    saveCartToStorage();
-                    updateCartBadge();
 
-                    // Очистить форму
-                    document.getElementById('customer-name').value = '';
-                    document.getElementById('delivery-address').value = '';
-                    document.getElementById('order-comment').value = '';
-
-                    // Сообщение об успехе
-                    showNotification(`✅ Заказ #${orderData.orderId} принят!\n\nВаш заказ записан в системе.`, 'success');
-
-                    // Вернуться на главную
-                    setTimeout(() => {
-                        showScreen('home');
-                    }, 2000);
-                } else {
-                    showNotification('❌ Ошибка при отправке заказа. Попробуйте позже', 'error');
-                    const submitBtn = document.getElementById('submit-order-btn');
-                    submitBtn.textContent = 'Подтвердить заказ';
-                    submitBtn.disabled = false;
-                }
-            }
-        }
 
         // ============== УВЕДОМЛЕНИЯ ==============
         function showNotification(message, type = 'info') {
